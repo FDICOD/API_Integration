@@ -4,9 +4,7 @@ from typing import Optional
 
 app = FastAPI()
 
-# 1. Updated Pydantic Model
-# Added 'gyro_mag' and 'accel_mag', which can be floats or None (null).
-# They will hold sensor magnitudes during an accident event.
+# The Pydantic model remains the same, as the fields are still optional on input.
 class SensorData(BaseModel):
     heartRate: int
     spo2: int
@@ -15,7 +13,6 @@ class SensorData(BaseModel):
     accel_mag: Optional[float] = None
 
 # In-memory list to store received sensor data.
-# For a real project, you'd use a database.
 data_storage = []
 
 @app.post("/sensor-data/")
@@ -25,7 +22,7 @@ async def receive_sensor_data(sensor_data: SensorData):
     it prints a special alert including gyroscope and accelerometer magnitude.
     """
     if sensor_data.accident_detected:
-        # 2. Handle the accident flag when present
+        # Handle the accident flag when present
         print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
         print(f"!!! ACCIDENT ALERT RECEIVED !!!")
         print(f"Heart Rate: {sensor_data.heartRate} bpm, SpO2: {sensor_data.spo2}%")
@@ -38,10 +35,14 @@ async def receive_sensor_data(sensor_data: SensorData):
         print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
     else:
         # Normal data logging
-        print(f"Health Data -> Heart Rate: {sensor_data.heartRate} bpm, SpO2: {sensor_data.spO2}%")
+        print(f"Health Data -> Heart Rate: {sensor_data.heartRate} bpm, SpO2: {sensor_data.spo2}%")
 
-    data_storage.append(sensor_data.dict())
-    return {"message": "Data received successfully", "data": sensor_data}
+    # Convert the Pydantic model to a dict, excluding any fields that are None.
+    # This prevents 'null' values from being stored or sent in the response.
+    output_data = sensor_data.dict(exclude_none=True)
+    
+    data_storage.append(output_data)
+    return {"message": "Data received successfully", "data": output_data}
 
 @app.get("/sensor-data/")
 async def get_sensor_data():
