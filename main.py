@@ -1,20 +1,40 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
+import uvicorn
 
-app = FastAPI()
-
+# --- Pydantic Models for Data Validation ---
 class SensorData(BaseModel):
     heartRate: int
     spo2: int
 
-data_storage = []  # List to store received sensor data
+class AlertData(BaseModel):
+    status: str
+    message: str
 
+# --- FastAPI App ---
+app = FastAPI()
+
+# --- API Endpoints ---
 @app.post("/sensor-data/")
-async def receive_sensor_data(sensor_data: SensorData):
-    print(f"Heart Rate: {sensor_data.heartRate} bpm, SpO2: {sensor_data.spo2}%")
-    data_storage.append(sensor_data)
-    return {"message": "Data received", "data": sensor_data}
+async def receive_sensor_data(data: SensorData):
+    """Handles periodic health data from the ESP32."""
+    print(f"HEALTH DATA -> Heart Rate: {data.heartRate} bpm, SpO2: {data.spo2}%")
+    return {"status": "success", "data_received": data}
 
-@app.get("/sensor-data/")
-async def get_sensor_data():
-    return data_storage
+# NEW ENDPOINT for accident alerts
+@app.post("/accident-alert/")
+async def receive_accident_alert(data: AlertData):
+    """Handles immediate accident alerts from the ESP32."""
+    print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+    print(f"ALERT RECEIVED -> Status: {data.status}, Message: {data.message}")
+    print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+    # Add logic here to send an email, SMS, or trigger another action
+    return {"status": "alert_acknowledged", "alert_received": data}
+
+@app.get("/")
+def root():
+    return {"message": "Server is running."}
+
+# --- Run the Server ---
+if _name_ == "_main_":
+    uvicorn.run(app, host="0.0.0.0", port=8000)
